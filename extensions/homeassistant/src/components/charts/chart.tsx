@@ -6,22 +6,22 @@ import { useEffect, useState } from "react";
 import { EChartsOption } from "echarts";
 
 interface Statistic {
-  start: number,
-  end: number,
-  mean?: number,
-  state?: number
+  start: number;
+  end: number;
+  mean?: number;
+  state?: number;
 }
 
 interface Statistics {
-  [k: string]: Statistic[]
+  [k: string]: Statistic[];
 }
 
-export function getChartMarkdown(state: State): {data?: string, isLoading: boolean, error?: string} {
+export function getChartMarkdown(state: State): { data?: string; isLoading: boolean; error?: string } {
   const [chartMarkdown, setChartMarkdown] = useState<string | undefined>();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>();
 
-  if (!state.entity_id.startsWith('sensor')) {
+  if (!state.entity_id.startsWith("sensor")) {
     return { data: chartMarkdown, isLoading, error };
   }
 
@@ -33,30 +33,33 @@ export function getChartMarkdown(state: State): {data?: string, isLoading: boole
 
       date.setDate(date.getDate() - 1);
 
-      const fetchHistory = (conn: Connection) => conn.sendMessagePromise<Statistics>({
-        type: "recorder/statistics_during_period",
-        period: "5minute",
-        start_time: date.toISOString(),
-        statistic_ids: [state.entity_id],
-        types: ["mean", "state"],
-      });
+      const fetchHistory = (conn: Connection) =>
+        conn.sendMessagePromise<Statistics>({
+          type: "recorder/statistics_during_period",
+          period: "5minute",
+          start_time: date.toISOString(),
+          statistic_ids: [state.entity_id],
+          types: ["mean", "state"],
+        });
 
       const collection = getCollection(conn, key, fetchHistory);
 
-      collection.subscribe(s => {
+      collection.subscribe((s) => {
         setIsLoading(true);
         const statistics = s[state.entity_id] ?? [];
 
         if (statistics.length === 0) {
-          setError('No history found');
+          setError("No history found");
           setIsLoading(false);
         }
 
-        const data = statistics
-          .map(d => [new Date(d.start).toISOString(), d.mean ? d.mean.toFixed(2) : d.state?.toFixed(2)])
+        const data = statistics.map((d) => [
+          new Date(d.start).toISOString(),
+          d.mean ? d.mean.toFixed(2) : d.state?.toFixed(2),
+        ]);
 
         const min = statistics
-          .map(d => d.mean ? Math.floor(d.mean) : d.state ? Math.floor(d.state) : 0)
+          .map((d) => (d.mean ? Math.floor(d.mean) : d.state ? Math.floor(d.state) : 0))
           .sort((a, b) => a - b);
 
         const chart = echarts.init(null, null, {
@@ -74,16 +77,16 @@ export function getChartMarkdown(state: State): {data?: string, isLoading: boole
           xAxis: {
             type: "time",
             axisLabel: {
-              fontSize: 16
+              fontSize: 16,
             },
-            minInterval: 100
+            minInterval: 100,
           },
           yAxis: {
             axisLabel: {
-              formatter: `{value} ${state.attributes['unit_of_measurement']}`,
-              fontSize: 16
+              formatter: `{value} ${state.attributes["unit_of_measurement"]}`,
+              fontSize: 16,
             },
-            min: min[0]
+            min: min[0],
           },
           series: [
             {
@@ -100,8 +103,8 @@ export function getChartMarkdown(state: State): {data?: string, isLoading: boole
                 width: 2,
               },
             },
-          ]
-        }
+          ],
+        };
 
         chart.setOption(options);
 
@@ -109,9 +112,9 @@ export function getChartMarkdown(state: State): {data?: string, isLoading: boole
         chart.dispose();
 
         const svgBase64 = Buffer.from(svgMarkup).toString("base64");
-        setChartMarkdown(`data:image/svg+xml;base64,${svgBase64}`)
+        setChartMarkdown(`data:image/svg+xml;base64,${svgBase64}`);
         setIsLoading(false);
-      })
+      });
     }
 
     getData();

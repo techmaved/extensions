@@ -12,13 +12,14 @@ function ListAttributeItem(props: { attributeKey: string; value: string | undefi
   const { isLoading, data, error } = getChartMarkdown(state);
 
   if (error) {
-    showFailureToast(error, { title: 'Failed to load chart.' })
+    showFailureToast(error, { title: "Failed to load chart." });
   }
 
   const id = data ? k : undefined;
-  const detail = k === 'state' && data
-      ? <List.Item.Detail isLoading={isLoading} markdown={`![Illustration](${data})`} />
-      : undefined;
+  const detail =
+    k === "state" && data ? (
+      <List.Item.Detail isLoading={isLoading} markdown={`![Illustration](${data})`} />
+    ) : undefined;
 
   return (
     <List.Item
@@ -88,10 +89,10 @@ export function EntityAttributesList({ state }: { state: State }) {
 
   return (
     <List
-        onSelectionChange={(e) => e === 'state' ? setShowDetails(true) : setShowDetails(false)}
-        searchBarPlaceholder="Search entity attributes"
-        navigationTitle="Attributes"
-        isShowingDetail={showDetails}
+      onSelectionChange={(e) => (e === "state" ? setShowDetails(true) : setShowDetails(false))}
+      searchBarPlaceholder="Search entity attributes"
+      navigationTitle="Attributes"
+      isShowingDetail={showDetails}
     >
       <List.Section title={`Attributes of ${title}`}>
         <ListAttributeItem attributeKey="state" value={`${state.state}`} state={state} />
