@@ -1,13 +1,30 @@
 import { State } from "@lib/haapi";
 import { formatToHumanDateTime, stringToDate } from "@lib/utils";
 import { Action, ActionPanel, List } from "@raycast/api";
+import { useState } from "react";
+import { getChartMarkdown } from "@components/charts/chart";
+import { showFailureToast } from "@raycast/utils";
 
 function ListAttributeItem(props: { attributeKey: string; value: string | undefined; tooltip?: string; state: State }) {
   const k = props.attributeKey;
   const v = props.value || "?";
+  const state = props.state || "";
+  const { isLoading, data, error } = getChartMarkdown(state);
+
+  if (error) {
+    showFailureToast(error, { title: 'Failed to load chart.' })
+  }
+
+  const id = data ? k : undefined;
+  const detail = k === 'state' && data
+      ? <List.Item.Detail isLoading={isLoading} markdown={`![Illustration](${data})`} />
+      : undefined;
+
   return (
     <List.Item
+      id={id}
       title={k}
+      detail={detail}
       actions={
         <ActionPanel>
           <ActionPanel.Section>
@@ -66,8 +83,16 @@ export function EntityAttributesList({ state }: { state: State }) {
   const title = state.attributes.friendly_name
     ? `${state.attributes.friendly_name} (${state.entity_id})`
     : `${state.entity_id}`;
+
+  const [showDetails, setShowDetails] = useState<boolean>(false);
+
   return (
-    <List searchBarPlaceholder="Search entity attributes" navigationTitle="Attributes">
+    <List
+        onSelectionChange={(e) => e === 'state' ? setShowDetails(true) : setShowDetails(false)}
+        searchBarPlaceholder="Search entity attributes"
+        navigationTitle="Attributes"
+        isShowingDetail={showDetails}
+    >
       <List.Section title={`Attributes of ${title}`}>
         <ListAttributeItem attributeKey="state" value={`${state.state}`} state={state} />
         <TimestampItems state={state} />
