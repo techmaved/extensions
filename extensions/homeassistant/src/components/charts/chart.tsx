@@ -2,7 +2,6 @@ import * as echarts from "echarts";
 import { State } from "@lib/haapi";
 import { Connection, getCollection } from "home-assistant-js-websocket";
 import { getHAWSConnection } from "@lib/common";
-import { useEffect, useState } from "react";
 import { EChartsOption } from "echarts";
 
 interface Statistic {
@@ -16,109 +15,92 @@ interface Statistics {
   [k: string]: Statistic[];
 }
 
-export function getChartMarkdown(state: State): { data?: string; isLoading: boolean; error?: string } {
-  const [chartMarkdown, setChartMarkdown] = useState<string | undefined>();
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string>();
+export async function getChartMarkdownAsync(state: State): Promise<string | undefined> {
+  const conn = await getHAWSConnection();
+  const key = "history_" + state.entity_id;
+  const date = new Date();
 
-  if (!state.entity_id.startsWith("sensor")) {
-    return { data: chartMarkdown, isLoading, error };
+  date.setDate(date.getDate() - 1);
+
+  const fetchHistory = (conn: Connection) =>
+    conn.sendMessagePromise<Statistics>({
+      type: "recorder/statistics_during_period",
+      period: "5minute",
+      start_time: date.toISOString(),
+      statistic_ids: [state.entity_id],
+      types: ["mean", "state"],
+    });
+
+  const collection = getCollection(conn, key, fetchHistory);
+
+  if (!collection.state) {
+    await collection.refresh();
   }
 
-  useEffect(() => {
-    async function getData() {
-      const conn = await getHAWSConnection();
-      const key = "history_" + state.entity_id;
-      const date = new Date();
+  const statistics = collection.state[state.entity_id] ?? [];
 
-      date.setDate(date.getDate() - 1);
+  if (statistics.length === 0) {
+    throw new Error("no statistics found");
+  }
 
-      const fetchHistory = (conn: Connection) =>
-        conn.sendMessagePromise<Statistics>({
-          type: "recorder/statistics_during_period",
-          period: "5minute",
-          start_time: date.toISOString(),
-          statistic_ids: [state.entity_id],
-          types: ["mean", "state"],
-        });
+  const data = statistics.map((d) => [
+    new Date(d.start).toISOString(),
+    d.mean ? d.mean.toFixed(2) : d.state?.toFixed(2),
+  ]);
 
-      const collection = getCollection(conn, key, fetchHistory);
+  const min = statistics
+    .map((d) => (d.mean ? Math.floor(d.mean) : d.state ? Math.floor(d.state) : 0))
+    .sort((a, b) => a - b);
 
-      collection.subscribe((s) => {
-        setIsLoading(true);
-        const statistics = s[state.entity_id] ?? [];
+  const chart = echarts.init(null, null, {
+    renderer: "svg",
+    ssr: true,
+    width: "600",
+    height: "500",
+  });
 
-        if (statistics.length === 0) {
-          setError("No history found");
-          setIsLoading(false);
-        }
+  const options: EChartsOption = {
+    dataset: {
+      source: data,
+      dimensions: ["timestamp", "value"],
+    },
+    xAxis: {
+      type: "time",
+      axisLabel: {
+        fontSize: 16,
+      },
+      minInterval: 100,
+    },
+    yAxis: {
+      axisLabel: {
+        formatter: `{value} ${state.attributes["unit_of_measurement"]}`,
+        fontSize: 16,
+      },
+      min: min[0],
+    },
+    series: [
+      {
+        name: "value",
+        type: "line",
+        encode: {
+          x: "timestamp",
+          y: "value",
+        },
+        showSymbol: false,
+        smooth: true,
+        lineStyle: {
+          color: "#5b8ff9",
+          width: 2,
+        },
+      },
+    ],
+  };
 
-        const data = statistics.map((d) => [
-          new Date(d.start).toISOString(),
-          d.mean ? d.mean.toFixed(2) : d.state?.toFixed(2),
-        ]);
+  chart.setOption(options);
 
-        const min = statistics
-          .map((d) => (d.mean ? Math.floor(d.mean) : d.state ? Math.floor(d.state) : 0))
-          .sort((a, b) => a - b);
+  const svgMarkup = chart.renderToSVGString();
+  chart.dispose();
 
-        const chart = echarts.init(null, null, {
-          renderer: "svg",
-          ssr: true,
-          width: "600",
-          height: "500",
-        });
-
-        const options: EChartsOption = {
-          dataset: {
-            source: data,
-            dimensions: ["timestamp", "value"],
-          },
-          xAxis: {
-            type: "time",
-            axisLabel: {
-              fontSize: 16,
-            },
-            minInterval: 100,
-          },
-          yAxis: {
-            axisLabel: {
-              formatter: `{value} ${state.attributes["unit_of_measurement"]}`,
-              fontSize: 16,
-            },
-            min: min[0],
-          },
-          series: [
-            {
-              name: "value",
-              type: "line",
-              encode: {
-                x: "timestamp",
-                y: "value",
-              },
-              showSymbol: false,
-              smooth: true,
-              lineStyle: {
-                color: "#5b8ff9",
-                width: 2,
-              },
-            },
-          ],
-        };
-
-        chart.setOption(options);
-
-        const svgMarkup = chart.renderToSVGString();
-        chart.dispose();
-
-        const svgBase64 = Buffer.from(svgMarkup).toString("base64");
-        setChartMarkdown(`data:image/svg+xml;base64,${svgBase64}`);
-        setIsLoading(false);
-      });
-    }
-
-    getData();
-  }, [state.entity_id]);
-
-  return { data: chartMarkdown, isLoading, error };
+  const svgBase64 = Buffer.from(svgMarkup).toString("base64");
+  return `![Illustration](data:image/svg+xml;base64,${svgBase64})`;
 }

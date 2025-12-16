@@ -1,25 +1,28 @@
 import { State } from "@lib/haapi";
 import { formatToHumanDateTime, stringToDate } from "@lib/utils";
 import { Action, ActionPanel, List } from "@raycast/api";
-import { useState } from "react";
-import { getChartMarkdown } from "@components/charts/chart";
-import { showFailureToast } from "@raycast/utils";
+import { JSX, useState } from "react";
+import { getChartMarkdownAsync } from "@components/charts/chart";
+import { showFailureToast, usePromise } from "@raycast/utils";
 
 function ListAttributeItem(props: { attributeKey: string; value: string | undefined; tooltip?: string; state: State }) {
   const k = props.attributeKey;
   const v = props.value || "?";
   const state = props.state || "";
-  const { isLoading, data, error } = getChartMarkdown(state);
+  let id: string | undefined;
+  let detail: JSX.Element | undefined;
 
-  if (error) {
-    showFailureToast(error, { title: "Failed to load chart." });
+  if (k === "state") {
+    id = k;
+
+    const { isLoading, data, error } = usePromise(getChartMarkdownAsync, [state]);
+
+    if (error) {
+      showFailureToast(error, { title: "Failed to load chart." });
+    }
+
+    detail = <List.Item.Detail isLoading={isLoading} markdown={data} />;
   }
-
-  const id = data ? k : undefined;
-  const detail =
-    k === "state" && data ? (
-      <List.Item.Detail isLoading={isLoading} markdown={`![Illustration](${data})`} />
-    ) : undefined;
 
   return (
     <List.Item
