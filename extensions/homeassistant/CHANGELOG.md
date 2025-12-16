@@ -1,5 +1,8 @@
 # Home Assistant Changelog
 
+## [Update] - {PR_MERGE_DATE}
+- Added history chart to sensors inspired by the Home Assistant when viewing attributes of entity
+
 ## [Fix] - 2025-11-14
 
 - Replaced deprecated `kelvin` attribute with `color_temp_kelvin` for lights actions
