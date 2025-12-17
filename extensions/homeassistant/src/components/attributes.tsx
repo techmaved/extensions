@@ -3,25 +3,27 @@ import { formatToHumanDateTime, stringToDate } from "@lib/utils";
 import { Action, ActionPanel, List } from "@raycast/api";
 import { JSX, useState } from "react";
 import { getChartMarkdownAsync } from "@components/charts/chart";
-import { showFailureToast, usePromise } from "@raycast/utils";
+import { showFailureToast, useCachedPromise } from "@raycast/utils";
+
+function ListDetail(props: { state: State }) {
+  const { isLoading, data, error } = useCachedPromise(getChartMarkdownAsync, [props.state]);
+
+  if (error) {
+    showFailureToast(error, { title: "Failed to load chart." });
+  }
+
+  return <List.Item.Detail isLoading={isLoading} markdown={data} />;
+}
 
 function ListAttributeItem(props: { attributeKey: string; value: string | undefined; tooltip?: string; state: State }) {
   const k = props.attributeKey;
   const v = props.value || "?";
   const state = props.state || "";
-  let id: string | undefined;
-  let detail: JSX.Element | undefined;
+  const id = k;
+  let detail: JSX.Element | undefined = undefined;
 
   if (k === "state") {
-    id = k;
-
-    const { isLoading, data, error } = usePromise(getChartMarkdownAsync, [state]);
-
-    if (error) {
-      showFailureToast(error, { title: "Failed to load chart." });
-    }
-
-    detail = <List.Item.Detail isLoading={isLoading} markdown={data} />;
+    detail = ListDetail({ state });
   }
 
   return (
