@@ -15,7 +15,7 @@ interface Statistics {
   [k: string]: Statistic[];
 }
 
-export async function getChartMarkdownAsync(state: State): Promise<string | undefined> {
+export async function getChartMarkdownAsync(state: State): Promise<string> {
   const conn = await getHAWSConnection();
   const key = "history_" + state.entity_id;
   const date = new Date();
