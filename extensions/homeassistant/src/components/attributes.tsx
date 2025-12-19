@@ -1,16 +1,16 @@
 import { State } from "@lib/haapi";
 import { formatToHumanDateTime, stringToDate } from "@lib/utils";
 import { Action, ActionPanel, List } from "@raycast/api";
-import { JSX, useState } from "react";
+import { useState } from "react";
 import { getChartMarkdownAsync } from "@components/charts/chart";
 import { showFailureToast, useCachedPromise } from "@raycast/utils";
 
-function ListDetail(props: { state: State }) {
-  const { isLoading, data, error } = useCachedPromise(getChartMarkdownAsync, [props.state]);
-
-  if (error) {
-    showFailureToast(error, { title: "Failed to load chart." });
-  }
+function ListDetail(props: { state: State; k: string }) {
+  const { isLoading, data } = useCachedPromise(getChartMarkdownAsync, [props.state], {
+    onError: (error) => {
+      showFailureToast(error, { title: "Failed to load chart." });
+    },
+  });
 
   return <List.Item.Detail isLoading={isLoading} markdown={data} />;
 }
@@ -19,18 +19,12 @@ function ListAttributeItem(props: { attributeKey: string; value: string | undefi
   const k = props.attributeKey;
   const v = props.value || "?";
   const state = props.state || "";
-  const id = k;
-  let detail: JSX.Element | undefined = undefined;
-
-  if (k === "state") {
-    detail = ListDetail({ state });
-  }
 
   return (
     <List.Item
-      id={id}
+      id={k}
       title={k}
-      detail={detail}
+      detail={k === "state" ? <ListDetail state={state} k={k} /> : undefined}
       actions={
         <ActionPanel>
           <ActionPanel.Section>
